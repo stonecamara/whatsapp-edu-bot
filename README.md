@@ -33,8 +33,8 @@ Au premier message, le bot se presente, affiche cette liste de commandes, puis l
 ## Notes importantes
 
 - WhatsApp Web n'est pas une API officielle. Utilise un numero de test.
-- Les reponses pedagogiques affichent des suggestions rapides (`Plus simple`, `Fiche PDF`, `Quiz PDF`). Si les boutons WhatsApp ne passent pas sur un client, le bot ajoute les memes suggestions en texte et l'eleve peut repondre `1`, `2` ou `3`.
-- `QUICK_REPLY_MODE=text` force les suggestions en texte au lieu des boutons.
+- Les reponses pedagogiques affichent des suggestions rapides en texte (`Plus simple`, `Fiche PDF`, `Quiz PDF`) et l'eleve peut repondre `1`, `2` ou `3`.
+- `QUICK_REPLY_MODE=buttons` tente les boutons WhatsApp natifs, mais le mode texte est plus fiable avec Baileys.
 - `ffmpeg` doit etre installe pour envoyer des notes vocales OGG/Opus.
 - Verifie les vrais modeles disponibles chez ton fournisseur IA avant de lancer en production.
 - Les vocaux entrants sont transcrits, mais la reponse automatique en note vocale est desactivee par defaut (`VOICE_REPLY_TO_INCOMING=false`). Active `/vocal` dans WhatsApp pour recevoir les reponses en audio.

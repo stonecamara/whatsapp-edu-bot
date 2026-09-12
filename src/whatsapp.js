@@ -264,7 +264,7 @@ async function sendTextWithSuggestions(sock, jid, text, phone, quickReplies = []
   }
 
   quickReplyChoices.set(phone, quickReplies);
-  if (String(process.env.QUICK_REPLY_MODE || 'buttons').toLowerCase() === 'text') {
+  if (String(process.env.QUICK_REPLY_MODE || 'text').toLowerCase() !== 'buttons') {
     await sock.sendMessage(jid, { text: `${text}\n\n${suggestionFallbackText(quickReplies)}` });
     return;
   }
@@ -309,15 +309,25 @@ function resolveQuickReplyChoice(phone, text) {
   if (!choices?.length) return text;
 
   const value = String(text || '').trim();
-  const number = Number(value);
+  const number = Number(value.match(/^\d+/)?.[0]);
   if (Number.isInteger(number) && number >= 1 && number <= choices.length) {
     quickReplyChoices.delete(phone);
     return choices[number - 1].id;
   }
 
-  const matched = choices.find((item) => [item.id, item.text].includes(value));
+  const normalizedValue = normalizeChoiceValue(value);
+  const matched = choices.find((item) => [item.id, item.text].some((candidate) => normalizeChoiceValue(candidate) === normalizedValue));
   quickReplyChoices.delete(phone);
   return matched?.id || text;
+}
+
+function normalizeChoiceValue(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9/]+/g, ' ')
+    .trim();
 }
 
 function sanitizeWhatsappChatText(text) {
