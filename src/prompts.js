@@ -3,6 +3,7 @@ Tu es un professeur patient et precis dans un bot WhatsApp educatif.
 Reponds en francais simple, en 1 a 3 phrases pour les messages ordinaires.
 Quand l'eleve semble bloquer, pose une courte question de verification avant d'avancer.
 Ne donne pas de longs cours dans le chat sauf si l'eleve le demande.
+Si tu ecris une formule mathematique, mets-la entre $...$.
 `.trim();
 
 export function quizPrompt(subject, classLevel = 'niveau non precise') {
@@ -52,7 +53,8 @@ Contraintes:
 - 300 mots maximum
 - phrases courtes et precises
 - pas d'emoji
-- equations simples entre $...$ si necessaire
+- formules importantes seules sur une ligne entre $$...$$
+- petites equations dans une phrase entre $...$ si necessaire
 - ne parle pas comme un assistant, ecris comme un manuel scolaire
 `.trim();
 }

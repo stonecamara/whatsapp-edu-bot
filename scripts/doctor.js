@@ -18,6 +18,9 @@ add('OpenAI key', hasOpenAiKey, hasOpenAiKey ? 'configuree' : process.env.AI_PRO
 const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 add('Supabase', hasSupabase, hasSupabase ? 'configure' : 'optionnel: fallback memoire locale');
 add('Groq vision', Boolean(process.env.GROQ_VISION_MODEL || process.env.OPENAI_API_KEY), process.env.GROQ_VISION_MODEL ? process.env.GROQ_VISION_MODEL : 'non configure');
+add('Media timeout', true, `${process.env.MEDIA_DOWNLOAD_TIMEOUT_MS || 12000}ms, retries=${process.env.MEDIA_DOWNLOAD_RETRIES || 2}`);
+add('Voice reply incoming', true, process.env.VOICE_REPLY_TO_INCOMING || 'false');
+add('TTS timeout', true, `${process.env.TTS_TIMEOUT_MS || 8000}ms`);
 
 const ffmpeg = spawnSync('ffmpeg', ['-version'], { encoding: 'utf8' });
 add('ffmpeg', ffmpeg.status === 0, ffmpeg.status === 0 ? ffmpeg.stdout.split('\n')[0] : 'requis pour les notes vocales TTS');
