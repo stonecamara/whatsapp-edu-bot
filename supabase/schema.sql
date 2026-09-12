@@ -5,7 +5,7 @@ create table if not exists public.students (
   class_level text,
   subjects text[] default '{}',
   is_registered boolean not null default false,
-  registration_step text not null default 'name',
+  registration_step text not null default 'intro',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -18,6 +18,25 @@ export function commandOf(text) {
   return { command: command.toLowerCase(), arg: rest.join(' ').trim() };
 }
 
+export function commandListText() {
+  return `/menu - aide
+/quiz [sujet] - fiche quiz PDF sur le dernier sujet
+/fiche [matiere] - fiche PDF
+/vocal - activer/desactiver le vocal
+/profil - voir ton profil
+/stop - annuler`;
+}
+
 export function menuText(botName = process.env.BOT_NAME || 'ScholarAI') {
-  return `${botName}\n/menu - aide\n/quiz [sujet] - fiche quiz PDF sur le dernier sujet\n/fiche [matiere] - fiche PDF\n/vocal - activer/desactiver le vocal\n/profil - voir ton profil\n/stop - annuler`;
+  return `${botName}\n${commandListText()}`;
+}
+
+export function introText(botName = process.env.BOT_NAME || 'ScholarAI') {
+  return `Bonjour, je suis ${botName}, ton assistant d'etude sur WhatsApp.
+Je peux t'aider a comprendre un cours, analyser une image de devoir, creer une fiche PDF et generer un quiz PDF.
+
+Commandes:
+${commandListText()}
+
+Pour commencer, quel est ton nom ?`;
 }

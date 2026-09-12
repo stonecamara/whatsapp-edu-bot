@@ -21,6 +21,8 @@ Au premier lancement, scanne le QR code WhatsApp affiche dans le terminal.
 
 ## Commandes WhatsApp
 
+Au premier message, le bot se presente, affiche cette liste de commandes, puis lance l'inscription.
+
 - `/menu`, `/aide`, `/help` : afficher l'aide
 - `/quiz [sujet]` : generer une fiche quiz PDF. Sans sujet, le bot utilise le dernier sujet de la conversation.
 - `/fiche [matiere]` : generer une fiche PDF

@@ -1,4 +1,5 @@
 import { getOrCreateStudent, updateStudent } from './database.js';
+import { introText } from './utils/helpers.js';
 
 export async function ensureRegistered(phone, text) {
   const student = await getOrCreateStudent(phone);
@@ -6,7 +7,16 @@ export async function ensureRegistered(phone, text) {
     return { registered: true, student };
   }
 
-  const value = text.trim();
+  const value = String(text || '').trim();
+  if (student.registration_step === 'intro') {
+    await updateStudent(phone, { registration_step: 'name' });
+    return { registered: false, reply: introText() };
+  }
+
+  if (student.registration_step === 'name' && !student.name && isGreeting(value)) {
+    return { registered: false, reply: introText() };
+  }
+
   if (!value) {
     return { registered: false, reply: registrationQuestion(student.registration_step) };
   }
@@ -35,7 +45,17 @@ export async function ensureRegistered(phone, text) {
 }
 
 function registrationQuestion(step) {
+  if (step === 'intro') return introText();
   if (step === 'class_level') return 'Quelle est ta classe ?';
   if (step === 'subjects') return 'Quelles matieres veux-tu travailler ?';
   return 'Bienvenue. Quel est ton nom ?';
+}
+
+function isGreeting(value) {
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+  return ['bonjour', 'bonsoir', 'salut', 'slt', 'cc', 'hello', 'hi', 'yo', 'hey'].includes(normalized);
 }

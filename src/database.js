@@ -36,7 +36,7 @@ export async function getOrCreateStudent(phone) {
         class_level: null,
         subjects: [],
         is_registered: false,
-        registration_step: 'name',
+        registration_step: 'intro',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
@@ -49,7 +49,7 @@ export async function getOrCreateStudent(phone) {
     if (found[0]) return found[0];
     const created = await supabaseRest('/students?select=*', {
       method: 'POST',
-      body: { phone, registration_step: 'name' },
+      body: { phone, registration_step: 'intro' },
       prefer: 'return=representation'
     });
     return created[0];
@@ -66,7 +66,7 @@ export async function getOrCreateStudent(phone) {
 
   const { data, error } = await supabase
     .from('students')
-    .insert({ phone, registration_step: 'name' })
+    .insert({ phone, registration_step: 'intro' })
     .select('*')
     .single();
   if (error) throw error;
