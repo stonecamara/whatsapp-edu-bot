@@ -5,8 +5,8 @@ import { generatePdfLesson } from './ai.js';
 
 let latexUtils;
 
-export async function createLessonPdf({ phone, subject, topic, classLevel, context }) {
-  const content = await generatePdfLesson({ subject, topic, classLevel, context });
+export async function createLessonPdf({ phone, subject, topic, classLevel, context, content }) {
+  const lessonContent = content || await generatePdfLesson({ subject, topic, classLevel, context });
   const tmpDir = process.env.TMP_DIR || 'tmp';
   fs.mkdirSync(tmpDir, { recursive: true });
   const filePath = path.join(tmpDir, `fiche-${phone}-${Date.now()}.pdf`);
@@ -14,7 +14,7 @@ export async function createLessonPdf({ phone, subject, topic, classLevel, conte
   await writePdf(filePath, {
     title: `Fiche - ${subject}`,
     subtitle: topic,
-    content
+    content: lessonContent
   });
 
   return filePath;
@@ -69,27 +69,40 @@ async function writeMathAwareLine(doc, line) {
     if (segment.type === 'text') {
       doc.font('Helvetica').fontSize(11).text(segment.value, { lineGap: 3 });
     } else {
-      await writeEquation(doc, segment.value, segment.display);
+      await writeEquation(doc, segment.value, { display: true });
     }
   }
 }
 
-async function writeEquation(doc, latex, display) {
+async function writeEquation(doc, latex, { display }) {
   try {
     const { renderLatexToPng } = await getLatexUtils();
     const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const rendered = await renderLatexToPng(latex, { display, maxWidth: Math.floor(availableWidth * 2) });
-    const width = Math.min(availableWidth, rendered.width / 2);
+    const width = Math.min(availableWidth, Math.max(140, availableWidth * equationWidthRatio(latex, display)));
+    const rendered = await renderLatexToPng(latex, { display, maxWidth: Math.floor(width * 3) });
     const height = Math.max(18, rendered.height * (width / rendered.width));
-    ensureSpace(doc, height + 16);
+    ensureSpace(doc, height + 18);
 
     const x = doc.page.margins.left + (availableWidth - width) / 2;
-    doc.moveDown(0.25);
+    doc.moveDown(display ? 0.45 : 0.25);
     doc.image(rendered.buffer, x, doc.y, { width });
-    doc.y += height + 8;
+    doc.y += height + 6;
+    doc.moveDown(0.35);
   } catch {
-    doc.font('Helvetica').fontSize(11).text(`$${latex}$`, { lineGap: 3 });
+    doc.font('Helvetica').fontSize(10).fillColor('#333').text(latex, { lineGap: 3 });
+    doc.fillColor('#111');
   }
+}
+
+function equationWidthRatio(latex, display) {
+  if (display) {
+    if (latex.length <= 18) return 0.34;
+    if (latex.length <= 36) return 0.46;
+    return 0.58;
+  }
+  if (latex.length <= 12) return 0.24;
+  if (latex.length <= 28) return 0.34;
+  return 0.46;
 }
 
 async function getLatexUtils() {

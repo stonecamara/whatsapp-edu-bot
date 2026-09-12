@@ -53,15 +53,17 @@ export function splitLatexSegments(text) {
 }
 
 export async function renderLatexToPng(latex, { display = true, maxWidth = 900 } = {}) {
-  const cacheKey = `${display}:${maxWidth}:${latex}`;
+  const renderAsDisplay = true;
+  const cacheKey = `${renderAsDisplay}:${maxWidth}:${latex}`;
   if (renderCache.has(cacheKey)) return renderCache.get(cacheKey);
 
-  const node = html.convert(latex, { display });
+  const node = html.convert(latex, { display: renderAsDisplay });
   const output = adaptor.outerHTML(node);
   const svgMarkup = extractSvg(output).replace(/currentColor/g, '#111111');
   const buffer = await sharp(Buffer.from(svgMarkup))
     .flatten({ background: '#ffffff' })
-    .resize({ width: maxWidth, fit: 'inside', withoutEnlargement: true })
+    .resize({ width: maxWidth, fit: 'inside' })
+    .extend({ top: 18, bottom: 18, left: 24, right: 24, background: '#ffffff' })
     .png()
     .toBuffer();
   const metadata = await sharp(buffer).metadata();
@@ -75,7 +77,8 @@ export async function renderLatexToPng(latex, { display = true, maxWidth = 900 }
 }
 
 function pushTextSegment(segments, value) {
-  const cleaned = value.replace(/\s+/g, ' ').trim();
+  const cleaned = value.replace(/\s+/g, ' ').trim().replace(/^[,;:]\s*/, '');
+  if (/^[.,;:!?]+$/.test(cleaned)) return;
   if (cleaned) segments.push({ type: 'text', value: cleaned });
 }
 
@@ -97,7 +100,7 @@ function isEscaped(text, index) {
 }
 
 function extractSvg(output) {
-  const match = output.match(/<svg[\s\S]*<\/svg>/);
+  const match = output.match(/<svg[\s\S]*?<\/svg>/);
   if (!match) throw new Error('MathJax SVG introuvable');
   const svgMarkup = match[0];
   if (svgMarkup.includes('xmlns=')) return svgMarkup;
