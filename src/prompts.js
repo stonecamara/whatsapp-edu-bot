@@ -8,14 +8,26 @@ Explique les relations mathematiques avec des mots simples.
 Pour les formules detaillees, propose /fiche [matiere] car les equations sont reservees aux PDF.
 `.trim();
 
-export function quizPrompt(subject, classLevel = 'niveau non precise') {
+export function quizPrompt(input, fallbackClassLevel = 'niveau non precise') {
+  const args = typeof input === 'object'
+    ? input
+    : { subject: input, topic: input, classLevel: fallbackClassLevel };
+  const subject = args.subject || 'cours';
+  const topic = args.topic || subject;
+  const classLevel = args.classLevel || fallbackClassLevel;
+  const context = args.context || 'aucun';
+
   return `
-Genere un quiz de revision en francais.
+Genere les donnees d'un quiz de revision en francais pour une fiche PDF.
 Matiere: ${subject}
 Niveau: ${classLevel}
+Sujet prioritaire: ${topic}
+Derniere conversation utile: ${context}
 
 Retourne uniquement un JSON valide, sans markdown, au format:
 {
+  "title": "titre court",
+  "recap": ["idee importante 1", "idee importante 2", "idee importante 3"],
   "questions": [
     {
       "question": "texte",
@@ -30,37 +42,12 @@ Contraintes:
 - exactement 5 questions
 - 4 options par question
 - "correct" est l'index de la bonne reponse entre 0 et 3
-- explication courte, utile et claire
-- pas de LaTeX ni d'equations affichees dans le chat WhatsApp
-- pour les calculs, ecris les relations en mots simples
-`.trim();
-}
-
-export function quizSheetPrompt({ subject, topic, classLevel, context }) {
-  return `
-Redige une fiche PDF de quiz en francais, style document de revision, aucun dialogue avec l'eleve.
-Matiere: ${subject}
-Sujet prioritaire: ${topic}
-Niveau: ${classLevel || 'niveau non precise'}
-Derniere conversation utile: ${context || 'aucune'}
-
-Structure obligatoire:
-# Rappel rapide
-# Quiz
-# Corrige
-
-Contraintes:
-- base le quiz sur le sujet de la derniere conversation si le contexte est disponible
-- exactement 5 questions
+- base les questions sur le sujet prioritaire et la derniere conversation
 - questions variees: comprehension, application, erreur a eviter
-- 4 choix A, B, C, D pour chaque question
-- dans le corrige, indique la bonne reponse et une explication courte
-- 450 mots maximum
+- explications courtes, utiles et claires
 - pas d'emoji
-- les formules sont autorisees uniquement dans cette fiche PDF
-- formules importantes seules sur une ligne entre $$...$$
-- petites equations dans une phrase entre $...$ si necessaire
-- ne parle pas comme un assistant, ecris comme un manuel scolaire
+- le quiz sera rendu dans un PDF; les formules LaTeX sont autorisees si necessaire
+- si tu utilises une formule, mets-la entre $...$ ou $$...$$
 `.trim();
 }
 

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import Groq from 'groq-sdk';
 import OpenAI from 'openai';
-import { SYSTEM_PROMPT, quizPrompt, quizSheetPrompt, pdfPrompt, visionPrompt } from './prompts.js';
+import { SYSTEM_PROMPT, quizPrompt, pdfPrompt, visionPrompt } from './prompts.js';
 
 const provider = process.env.AI_PROVIDER || 'groq';
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -83,13 +83,14 @@ export async function chatWithTutor(text, history = []) {
   ]);
 }
 
-export async function generateQuiz(subject, classLevel) {
+export async function generateQuiz(input, classLevel) {
   const raw = await complete([
     { role: 'system', content: 'Tu retournes uniquement du JSON valide.' },
-    { role: 'user', content: quizPrompt(subject, classLevel) }
+    { role: 'user', content: quizPrompt(input, classLevel) }
   ]);
-  const cleaned = raw.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
-  return JSON.parse(cleaned);
+  const quiz = normalizeQuiz(parseJsonResponse(raw));
+  if (quiz.questions.length !== 5) throw new Error('Quiz invalide: 5 questions attendues');
+  return quiz;
 }
 
 export async function generatePdfLesson(args) {
@@ -97,14 +98,6 @@ export async function generatePdfLesson(args) {
     { role: 'system', content: 'Tu rediges des fiches de cours compactes et exactes.' },
     { role: 'user', content: pdfPrompt(args) },
     { role: 'user', content: 'Genere maintenant le contenu demande.' }
-  ], { maxTokens: maxPdfTokens });
-}
-
-export async function generateQuizSheet(args) {
-  return complete([
-    { role: 'system', content: 'Tu rediges des fiches PDF de quiz compactes et exactes.' },
-    { role: 'user', content: quizSheetPrompt(args) },
-    { role: 'user', content: 'Genere maintenant la fiche quiz demandee.' }
   ], { maxTokens: maxPdfTokens });
 }
 
@@ -134,6 +127,53 @@ export async function analyzeImage({ base64Image, mimeType, caption }) {
     })
   );
   return response.choices?.[0]?.message?.content?.trim() || '';
+}
+
+function parseJsonResponse(raw) {
+  const cleaned = String(raw || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
+    throw new Error('Reponse JSON invalide pour le quiz');
+  }
+}
+
+function normalizeQuiz(value) {
+  const questions = Array.isArray(value?.questions) ? value.questions : [];
+  return {
+    title: String(value?.title || 'Quiz de revision').trim(),
+    recap: Array.isArray(value?.recap)
+      ? value.recap.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4)
+      : [],
+    questions: questions.map(normalizeQuestion).filter(Boolean).slice(0, 5)
+  };
+}
+
+function normalizeQuestion(question) {
+  const options = Array.isArray(question?.options)
+    ? question.options.map((option) => String(option || '').trim()).filter(Boolean).slice(0, 4)
+    : [];
+  if (!question?.question || options.length !== 4) return null;
+
+  return {
+    question: String(question.question).trim(),
+    options,
+    correct: normalizeCorrectIndex(question.correct),
+    explanation: String(question.explanation || '').trim()
+  };
+}
+
+function normalizeCorrectIndex(value) {
+  if (Number.isInteger(value) && value >= 0 && value <= 3) return value;
+  const text = String(value || '').trim().toUpperCase();
+  if (['A', '0'].includes(text)) return 0;
+  if (['B', '1'].includes(text)) return 1;
+  if (['C', '2'].includes(text)) return 2;
+  if (['D', '3'].includes(text)) return 3;
+  return 0;
 }
 
 async function analyzeImageWithOpenAi({ base64Image, mimeType, prompt }) {
