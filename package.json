@@ -1,0 +1,28 @@
+{
+  "name": "whatsapp-edu-bot",
+  "version": "0.1.0",
+  "description": "Bot WhatsApp educatif avec chat, quiz, fiches PDF, image et vocal.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "check": "node --check src/index.js && node --check src/whatsapp.js && node --check src/ai.js && node --check src/database.js && node --check src/studentManager.js && node --check src/quizGenerator.js && node --check src/pdf.js && node --check src/prompts.js && node --check src/utils/helpers.js && node --check src/utils/voice.js && node --check src/utils/latex.js && node --check scripts/doctor.js && node --check scripts/configure-supabase.js",
+    "doctor": "node scripts/doctor.js",
+    "configure:supabase": "node scripts/configure-supabase.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "@whiskeysockets/baileys": "^6.7.24",
+    "dotenv": "^16.4.5",
+    "file-type": "^19.6.0",
+    "groq-sdk": "^0.7.0",
+    "openai": "^4.67.3",
+    "pdfkit": "^0.15.1",
+    "pino": "^9.4.0",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {}
+}
