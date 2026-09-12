@@ -69,7 +69,7 @@ async function writeMathAwareLine(doc, line) {
     if (segment.type === 'text') {
       doc.font('Helvetica').fontSize(11).text(segment.value, { lineGap: 3 });
     } else {
-      await writeEquation(doc, segment.value, { display: true });
+      await writeEquation(doc, segment.value, { display: segment.display });
     }
   }
 }
@@ -78,9 +78,14 @@ async function writeEquation(doc, latex, { display }) {
   try {
     const { renderLatexToPng } = await getLatexUtils();
     const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const width = Math.min(availableWidth, Math.max(140, availableWidth * equationWidthRatio(latex, display)));
+    let width = Math.min(availableWidth, Math.max(80, availableWidth * equationWidthRatio(latex, display)));
     const rendered = await renderLatexToPng(latex, { display, maxWidth: Math.floor(width * 3) });
-    const height = Math.max(18, rendered.height * (width / rendered.width));
+    let height = Math.max(14, rendered.height * (width / rendered.width));
+    const maxHeight = display ? 62 : 34;
+    if (height > maxHeight) {
+      width *= maxHeight / height;
+      height = maxHeight;
+    }
     ensureSpace(doc, height + 18);
 
     const x = doc.page.margins.left + (availableWidth - width) / 2;
@@ -96,13 +101,13 @@ async function writeEquation(doc, latex, { display }) {
 
 function equationWidthRatio(latex, display) {
   if (display) {
-    if (latex.length <= 18) return 0.34;
-    if (latex.length <= 36) return 0.46;
-    return 0.58;
+    if (latex.length <= 18) return 0.24;
+    if (latex.length <= 36) return 0.34;
+    return 0.46;
   }
-  if (latex.length <= 12) return 0.24;
-  if (latex.length <= 28) return 0.34;
-  return 0.46;
+  if (latex.length <= 12) return 0.14;
+  if (latex.length <= 28) return 0.22;
+  return 0.32;
 }
 
 async function getLatexUtils() {
