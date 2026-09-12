@@ -36,6 +36,34 @@ Contraintes:
 `.trim();
 }
 
+export function quizSheetPrompt({ subject, topic, classLevel, context }) {
+  return `
+Redige une fiche PDF de quiz en francais, style document de revision, aucun dialogue avec l'eleve.
+Matiere: ${subject}
+Sujet prioritaire: ${topic}
+Niveau: ${classLevel || 'niveau non precise'}
+Derniere conversation utile: ${context || 'aucune'}
+
+Structure obligatoire:
+# Rappel rapide
+# Quiz
+# Corrige
+
+Contraintes:
+- base le quiz sur le sujet de la derniere conversation si le contexte est disponible
+- exactement 5 questions
+- questions variees: comprehension, application, erreur a eviter
+- 4 choix A, B, C, D pour chaque question
+- dans le corrige, indique la bonne reponse et une explication courte
+- 450 mots maximum
+- pas d'emoji
+- les formules sont autorisees uniquement dans cette fiche PDF
+- formules importantes seules sur une ligne entre $$...$$
+- petites equations dans une phrase entre $...$ si necessaire
+- ne parle pas comme un assistant, ecris comme un manuel scolaire
+`.trim();
+}
+
 export function pdfPrompt({ subject, topic, classLevel, context }) {
   return `
 Redige une fiche de cours en francais, style livre de cours, aucun dialogue avec l'eleve.

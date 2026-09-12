@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import PDFDocument from 'pdfkit';
-import { generatePdfLesson } from './ai.js';
+import { generatePdfLesson, generateQuizSheet } from './ai.js';
 
 let latexUtils;
 
@@ -15,6 +15,21 @@ export async function createLessonPdf({ phone, subject, topic, classLevel, conte
     title: `Fiche - ${subject}`,
     subtitle: topic,
     content: lessonContent
+  });
+
+  return filePath;
+}
+
+export async function createQuizPdf({ phone, subject, topic, classLevel, context, content }) {
+  const quizContent = content || await generateQuizSheet({ subject, topic, classLevel, context });
+  const tmpDir = process.env.TMP_DIR || 'tmp';
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const filePath = path.join(tmpDir, `quiz-${phone}-${Date.now()}.pdf`);
+
+  await writePdf(filePath, {
+    title: `Fiche quiz - ${subject}`,
+    subtitle: topic,
+    content: quizContent
   });
 
   return filePath;

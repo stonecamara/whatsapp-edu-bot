@@ -19,5 +19,5 @@ export function commandOf(text) {
 }
 
 export function menuText(botName = process.env.BOT_NAME || 'ScholarAI') {
-  return `${botName}\n/menu - aide\n/quiz [matiere] - quiz rapide\n/fiche [matiere] - fiche PDF\n/vocal - activer/desactiver le vocal\n/profil - voir ton profil\n/stop - annuler`;
+  return `${botName}\n/menu - aide\n/quiz [sujet] - fiche quiz PDF sur le dernier sujet\n/fiche [matiere] - fiche PDF\n/vocal - activer/desactiver le vocal\n/profil - voir ton profil\n/stop - annuler`;
 }

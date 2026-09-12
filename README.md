@@ -1,6 +1,6 @@
 # WhatsApp Edu Bot
 
-Bot WhatsApp educatif en Node.js avec Baileys, Supabase, quiz interactifs, fiches PDF, analyse d'image et support vocal.
+Bot WhatsApp educatif en Node.js avec Baileys, Supabase, fiches PDF, quiz PDF sur le dernier sujet, analyse d'image et support vocal.
 
 ## Installation
 
@@ -22,7 +22,7 @@ Au premier lancement, scanne le QR code WhatsApp affiche dans le terminal.
 ## Commandes WhatsApp
 
 - `/menu`, `/aide`, `/help` : afficher l'aide
-- `/quiz [matiere]` : lancer un quiz
+- `/quiz [sujet]` : generer une fiche quiz PDF. Sans sujet, le bot utilise le dernier sujet de la conversation.
 - `/fiche [matiere]` : generer une fiche PDF
 - `/vocal` : activer/desactiver les reponses vocales
 - `/profil` : afficher le profil

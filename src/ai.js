@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import Groq from 'groq-sdk';
 import OpenAI from 'openai';
-import { SYSTEM_PROMPT, quizPrompt, pdfPrompt, visionPrompt } from './prompts.js';
+import { SYSTEM_PROMPT, quizPrompt, quizSheetPrompt, pdfPrompt, visionPrompt } from './prompts.js';
 
 const provider = process.env.AI_PROVIDER || 'groq';
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -97,6 +97,14 @@ export async function generatePdfLesson(args) {
     { role: 'system', content: 'Tu rediges des fiches de cours compactes et exactes.' },
     { role: 'user', content: pdfPrompt(args) },
     { role: 'user', content: 'Genere maintenant le contenu demande.' }
+  ], { maxTokens: maxPdfTokens });
+}
+
+export async function generateQuizSheet(args) {
+  return complete([
+    { role: 'system', content: 'Tu rediges des fiches PDF de quiz compactes et exactes.' },
+    { role: 'user', content: quizSheetPrompt(args) },
+    { role: 'user', content: 'Genere maintenant la fiche quiz demandee.' }
   ], { maxTokens: maxPdfTokens });
 }
 

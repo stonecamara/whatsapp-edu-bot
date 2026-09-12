@@ -13,8 +13,7 @@ import { Boom } from '@hapi/boom';
 import { chatWithTutor, analyzeImage } from './ai.js';
 import { getHistory, getOrCreateStudent, saveMessage } from './database.js';
 import { ensureRegistered } from './studentManager.js';
-import { answerQuiz, activeQuizzes, startQuiz, stopQuiz } from './quizGenerator.js';
-import { createLessonPdf } from './pdf.js';
+import { createLessonPdf, createQuizPdf } from './pdf.js';
 import { commandOf, extractText, menuText, phoneFromJid } from './utils/helpers.js';
 import { synthesizeVoice, transcribeVoice } from './utils/voice.js';
 
@@ -101,12 +100,6 @@ async function handleMessage(sock, raw) {
 
   if (!text) return;
 
-  if (activeQuizzes.has(phone) && !text.startsWith('/')) {
-    const reply = await answerQuiz(phone, text);
-    await sendReply(sock, jid, reply, phone, hasVoice);
-    return;
-  }
-
   if (pendingFiches.has(phone) && !text.startsWith('/')) {
     const { subject, classLevel } = pendingFiches.get(phone);
     pendingFiches.delete(phone);
@@ -144,7 +137,7 @@ async function handleCommand(sock, jid, phone, command, arg, forceVoice) {
   }
 
   if (['/stop', '/annuler', '/cancel'].includes(command)) {
-    const stopped = stopQuiz(phone) || pendingFiches.delete(phone);
+    const stopped = pendingFiches.delete(phone);
     await sendReply(sock, jid, stopped ? 'Action annulee.' : 'Aucune action en cours.', phone, forceVoice);
     return;
   }
@@ -170,10 +163,22 @@ async function handleCommand(sock, jid, phone, command, arg, forceVoice) {
   }
 
   if (command === '/quiz') {
-    const subject = arg || student.subjects?.[0] || 'mathematiques';
-    await sock.sendMessage(jid, { text: `Je prepare un quiz en ${subject}...` });
-    const reply = await startQuiz(phone, subject, student.class_level);
-    await sendReply(sock, jid, reply, phone, forceVoice);
+    const history = await getHistory(phone);
+    const topic = arg || latestConversationTopic(history);
+    if (!topic) {
+      await sendReply(sock, jid, "Parle-moi d'abord du sujet, puis tape /quiz. Tu peux aussi taper /quiz [sujet].", phone, forceVoice);
+      return;
+    }
+
+    const subject = student.subjects?.[0] || arg || 'cours';
+    const context = conversationContext(history);
+    await sock.sendMessage(jid, { text: `Je prepare une fiche quiz PDF sur ${topic}...` });
+    const filePath = await createQuizPdf({ phone, subject, topic, classLevel: student.class_level, context });
+    await sock.sendMessage(jid, {
+      document: fs.readFileSync(filePath),
+      fileName: `quiz-${safeFileNamePart(topic)}.pdf`,
+      mimetype: 'application/pdf'
+    });
     return;
   }
 
@@ -255,6 +260,35 @@ function sanitizeWhatsappChatText(text) {
     .trim();
 
   return sanitized || 'La formule detaillee est disponible dans la fiche PDF. Tape /fiche [matiere] pour recevoir le PDF.';
+}
+
+function conversationContext(history) {
+  return history.map((item) => `${item.role}: ${item.content}`).join('\n').slice(-1600);
+}
+
+function latestConversationTopic(history) {
+  const ignored = new Set(['ok', 'oui', 'non', 'merci', 'cool', 'daccord', "d'accord", 'continue', 'continuer']);
+  const lastUserMessage = [...history]
+    .reverse()
+    .find((item) => {
+      const content = item.content?.trim();
+      if (item.role !== 'user' || !content || content.startsWith('/')) return false;
+      return !ignored.has(content.toLowerCase());
+    });
+
+  return lastUserMessage?.content.trim().slice(0, 160) || '';
+}
+
+function safeFileNamePart(value, fallback = 'quiz') {
+  const slug = String(value || fallback)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+  return slug || fallback;
 }
 
 async function downloadMediaBuffer(sock, raw) {
