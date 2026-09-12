@@ -19,15 +19,9 @@ import { synthesizeVoice, transcribeVoice } from './utils/voice.js';
 
 const pendingFiches = new Map();
 const voicePrefs = new Map();
-const quickReplyChoices = new Map();
 const mediaDownloadTimeoutMs = Number(process.env.MEDIA_DOWNLOAD_TIMEOUT_MS || 12000);
 const mediaDownloadRetries = Number(process.env.MEDIA_DOWNLOAD_RETRIES || 2);
 const voiceReplyToIncoming = parseBoolean(process.env.VOICE_REPLY_TO_INCOMING, false);
-const defaultSuggestions = [
-  { id: 'Explique encore plus simplement', text: 'Plus simple' },
-  { id: '/fiche', text: 'Fiche PDF' },
-  { id: '/quiz', text: 'Quiz PDF' }
-];
 
 export async function startWhatsAppBot() {
   const authDir = process.env.AUTH_DIR || 'auth';
@@ -93,8 +87,6 @@ async function handleMessage(sock, raw) {
     }
   }
 
-  text = resolveQuickReplyChoice(phone, text);
-
   const registration = await ensureRegistered(phone, text);
   if (registration.reply) await sendReply(sock, jid, registration.reply, phone, hasVoice);
   if (!registration.registered) return;
@@ -102,7 +94,7 @@ async function handleMessage(sock, raw) {
   if (hasImage) {
     await sendPresence(sock, jid, 'composing');
     const reply = await handleImage(sock, raw, text);
-    await sendReply(sock, jid, reply, phone, hasVoice, { suggestions: defaultSuggestions });
+    await sendReply(sock, jid, reply, phone, hasVoice);
     return;
   }
 
@@ -135,12 +127,12 @@ async function handleMessage(sock, raw) {
   const reply = await chatWithTutor(text, history);
   const chatReply = sanitizeWhatsappChatText(reply);
   await saveMessage(phone, 'assistant', chatReply);
-  await sendReply(sock, jid, chatReply, phone, hasVoice, { suggestions: defaultSuggestions });
+  await sendReply(sock, jid, chatReply, phone, hasVoice);
 }
 
 async function handleCommand(sock, jid, phone, command, arg, forceVoice) {
   if (['/menu', '/aide', '/help'].includes(command)) {
-    await sendReply(sock, jid, menuText(), phone, forceVoice, { suggestions: defaultSuggestions });
+    await sendReply(sock, jid, menuText(), phone, forceVoice);
     return;
   }
 
@@ -165,8 +157,7 @@ async function handleCommand(sock, jid, phone, command, arg, forceVoice) {
       jid,
       `Nom: ${student.name}\nClasse: ${student.class_level}\nMatieres: ${(student.subjects || []).join(', ') || 'aucune'}`,
       phone,
-      forceVoice,
-      { suggestions: defaultSuggestions }
+      forceVoice
     );
     return;
   }
@@ -226,14 +217,12 @@ async function saveIncomingMedia(sock, raw, prefix) {
   return filePath;
 }
 
-async function sendReply(sock, jid, text, phone, forceVoice = false, { suggestions = [] } = {}) {
+async function sendReply(sock, jid, text, phone, forceVoice = false) {
   const chatText = sanitizeWhatsappChatText(text);
-  const quickReplies = normalizeSuggestions(suggestions);
   const maxTtsChars = Number(process.env.VOICE_MAX_TTS_CHARS || 160);
   const shouldSendVoice = voicePrefs.get(phone) || (forceVoice && voiceReplyToIncoming);
 
   if (shouldSendVoice && chatText.length <= maxTtsChars) {
-    quickReplyChoices.delete(phone);
     let voicePath;
     try {
       await sendPresence(sock, jid, 'recording');
@@ -253,81 +242,7 @@ async function sendReply(sock, jid, text, phone, forceVoice = false, { suggestio
   }
 
   await sendPresence(sock, jid, 'paused');
-  await sendTextWithSuggestions(sock, jid, chatText, phone, quickReplies);
-}
-
-async function sendTextWithSuggestions(sock, jid, text, phone, quickReplies = []) {
-  if (!quickReplies.length) {
-    quickReplyChoices.delete(phone);
-    await sock.sendMessage(jid, { text });
-    return;
-  }
-
-  quickReplyChoices.set(phone, quickReplies);
-  if (String(process.env.QUICK_REPLY_MODE || 'text').toLowerCase() !== 'buttons') {
-    await sock.sendMessage(jid, { text: `${text}\n\n${suggestionFallbackText(quickReplies)}` });
-    return;
-  }
-
-  try {
-    await sock.sendMessage(jid, {
-      text,
-      footer: process.env.BOT_NAME || 'ScholarAI',
-      buttons: quickReplies.map((item) => ({
-        buttonId: item.id,
-        buttonText: { displayText: item.text },
-        type: 1
-      })),
-      headerType: 1
-    });
-  } catch (error) {
-    logErrorSummary('quick-replies', error);
-    await sock.sendMessage(jid, { text: `${text}\n\n${suggestionFallbackText(quickReplies)}` });
-  }
-}
-
-function normalizeSuggestions(suggestions) {
-  return suggestions
-    .map((item) => ({
-      id: String(item?.id || '').trim(),
-      text: String(item?.text || '').trim()
-    }))
-    .filter((item) => item.id && item.text)
-    .slice(0, 3);
-}
-
-function suggestionFallbackText(suggestions) {
-  return [
-    'Suggestions rapides:',
-    ...suggestions.map((item, index) => `${index + 1}. ${item.text}`),
-    'Reponds avec 1, 2 ou 3.'
-  ].join('\n');
-}
-
-function resolveQuickReplyChoice(phone, text) {
-  const choices = quickReplyChoices.get(phone);
-  if (!choices?.length) return text;
-
-  const value = String(text || '').trim();
-  const number = Number(value.match(/^\d+/)?.[0]);
-  if (Number.isInteger(number) && number >= 1 && number <= choices.length) {
-    quickReplyChoices.delete(phone);
-    return choices[number - 1].id;
-  }
-
-  const normalizedValue = normalizeChoiceValue(value);
-  const matched = choices.find((item) => [item.id, item.text].some((candidate) => normalizeChoiceValue(candidate) === normalizedValue));
-  quickReplyChoices.delete(phone);
-  return matched?.id || text;
-}
-
-function normalizeChoiceValue(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9/]+/g, ' ')
-    .trim();
+  await sock.sendMessage(jid, { text: chatText });
 }
 
 function sanitizeWhatsappChatText(text) {
