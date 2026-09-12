@@ -132,8 +132,9 @@ async function handleMessage(sock, raw) {
   await sendPresence(sock, jid, 'composing');
   const history = await getHistory(phone);
   const reply = await chatWithTutor(text, history);
-  await saveMessage(phone, 'assistant', reply);
-  await sendReply(sock, jid, reply, phone, hasVoice);
+  const chatReply = sanitizeWhatsappChatText(reply);
+  await saveMessage(phone, 'assistant', chatReply);
+  await sendReply(sock, jid, chatReply, phone, hasVoice);
 }
 
 async function handleCommand(sock, jid, phone, command, arg, forceVoice) {
@@ -212,19 +213,15 @@ async function saveIncomingMedia(sock, raw, prefix) {
 }
 
 async function sendReply(sock, jid, text, phone, forceVoice = false) {
+  const chatText = sanitizeWhatsappChatText(text);
   const maxTtsChars = Number(process.env.VOICE_MAX_TTS_CHARS || 160);
   const shouldSendVoice = voicePrefs.get(phone) || (forceVoice && voiceReplyToIncoming);
-  if (containsLatex(text)) {
-    await sendPresence(sock, jid, 'paused');
-    await sendMathAwareText(sock, jid, text);
-    return;
-  }
 
-  if (shouldSendVoice && text.length <= maxTtsChars) {
+  if (shouldSendVoice && chatText.length <= maxTtsChars) {
     let voicePath;
     try {
       await sendPresence(sock, jid, 'recording');
-      voicePath = await synthesizeVoice(text);
+      voicePath = await synthesizeVoice(chatText);
       await sock.sendMessage(jid, {
         audio: fs.readFileSync(voicePath),
         mimetype: 'audio/ogg; codecs=opus',
@@ -240,37 +237,24 @@ async function sendReply(sock, jid, text, phone, forceVoice = false) {
   }
 
   await sendPresence(sock, jid, 'paused');
-  await sock.sendMessage(jid, { text });
+  await sock.sendMessage(jid, { text: chatText });
 }
 
-async function sendMathAwareText(sock, jid, text) {
-  const { renderLatexToPng, splitLatexSegments } = await import('./utils/latex.js');
-  const segments = splitLatexSegments(text);
-  const mathSegments = segments.filter((segment) => segment.type === 'math').slice(0, 4);
-  const readableText = segments
-    .map((segment) => segment.type === 'text' ? segment.value : '[formule]')
-    .join(' ')
-    .replace(/\s+([,.;:!?])/g, '$1')
+function sanitizeWhatsappChatText(text) {
+  const value = String(text ?? '');
+  const sanitized = value
+    .replace(/\\begin\{(?:equation|align|gather|multline)\*?\}[\s\S]*?\\end\{(?:equation|align|gather|multline)\*?\}/g, 'La formule detaillee est disponible dans la fiche PDF.')
+    .replace(/\\\[[\s\S]*?\\\]/g, 'La formule detaillee est disponible dans la fiche PDF.')
+    .replace(/\\\([^)]*?\\\)/g, 'la formule est disponible dans la fiche PDF')
+    .replace(/\$\$[\s\S]*?\$\$/g, 'La formule detaillee est disponible dans la fiche PDF.')
+    .replace(/(^|[^\\])\$([^$\n]+)\$/g, '$1la formule est disponible dans la fiche PDF')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  await sock.sendMessage(jid, { text: readableText || text });
-
-  for (const segment of mathSegments) {
-    try {
-      const rendered = await renderLatexToPng(segment.value, { display: true, maxWidth: 1000 });
-      await sock.sendMessage(jid, {
-        image: rendered.buffer,
-        caption: segment.value.length <= 120 ? segment.value : undefined
-      });
-    } catch (error) {
-      logErrorSummary('math-whatsapp', error);
-      await sock.sendMessage(jid, { text: `$${segment.value}$` });
-    }
-  }
-}
-
-function containsLatex(text) {
-  return /(^|[^\\])\$\$?[^$]+\$\$?/.test(text);
+  return sanitized || 'La formule detaillee est disponible dans la fiche PDF. Tape /fiche [matiere] pour recevoir le PDF.';
 }
 
 async function downloadMediaBuffer(sock, raw) {
